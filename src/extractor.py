@@ -97,6 +97,66 @@ class ContentExtractor:
     def _canonical_url(self, raw_page: RawPage) -> str:
         return canonicalize_url(str(raw_page.canonical_url or raw_page.final_url or raw_page.url))
 
+    def _allow_opportunistic_course_extraction(self, route_url: str) -> bool:
+        """
+        Only run course-title extraction on real MS-ADS curriculum/program pages.
+        Do NOT run it on news, event, or capstone-project pages because headings like
+        "A Love for Data Engineering" or capstone project titles contain course keywords
+        but are not course catalog entries.
+        """
+        lower = route_url.lower()
+        blocked_paths = [
+            "/news/",
+            "/events/",
+            "/capstone-projects",
+            "/capstone-project-archive",
+        ]
+        if any(path in lower for path in blocked_paths):
+            return False
+
+        allowed_paths = [
+            "/ms-in-applied-data-science/course-progressions",
+            "/ms-in-applied-data-science/in-person-program",
+            "/ms-in-applied-data-science/online-program",
+        ]
+        return any(path in lower for path in allowed_paths)
+
+    def _fallback_content_type(self, content_type: str, route_url: str, page_title: str, section_title: str, content: str) -> str:
+        """
+        Eliminate unknown records by applying safe, source-aware fallbacks.
+        This keeps retrieval filters clean without throwing away useful chunks.
+        """
+        if content_type != "unknown":
+            return content_type
+
+        blob = f"{route_url} {page_title} {section_title} {content[:1200]}".lower()
+
+        if "/events/" in blob or "q&a" in blob or "admission" in blob or "apply" in blob:
+            return "admissions"
+        if "/news/" in blob and any(k in blob for k in ["staff", "student", "alumni", "speaker"]):
+            return "career"
+        if "speaker" in blob or "current masters" in blob or "enrollment management" in blob:
+            return "admissions"
+        if "faculty" in blob or "instructor" in blob or "staff" in blob:
+            return "faculty"
+
+        return "overview"
+
+    def _ensure_specialized_metadata(self, content_type: str, section_title: str, content: str, extras: dict) -> None:
+        """
+        Backfill key structured fields when a section is classified as a specialized
+        type through generic extraction rather than a specialized extractor.
+        """
+        if content_type == "faculty_bio" and not extras.get("faculty_name"):
+            if _looks_like_person_name(section_title):
+                extras["faculty_name"] = section_title
+
+        if content_type == "course" and not extras.get("course_name"):
+            # Only treat real course catalog headings as course names.
+            if _is_course_title(section_title.lower()):
+                extras.setdefault("_extra_course_names", [section_title])
+                extras.setdefault("course_type", "unknown")
+
     def _heading_path_for(self, heading: Tag) -> List[str]:
         levels: Dict[int, str] = {}
         current_level = int(heading.name[1]) if heading.name and heading.name.startswith("h") else 7
@@ -499,8 +559,13 @@ class ContentExtractor:
             extracted = self._extract_faculty_sections(soup)
 
         if not extracted:
-            # Opportunistic course extraction on pages that contain course headings.
-            course_sections = self._extract_course_sections(soup)
+            # Opportunistic course extraction ONLY on curriculum/program pages.
+            # This prevents news/event/capstone article headings from becoming fake courses.
+            if self._allow_opportunistic_course_extraction(route_url):
+                course_sections = self._extract_course_sections(soup)
+            else:
+                course_sections = []
+
             generic_sections = self._extract_sections(soup)
             extracted = course_sections + generic_sections if course_sections else generic_sections
 
@@ -521,17 +586,6 @@ class ContentExtractor:
         canonical_url = self._canonical_url(raw_page)
         content_clean = clean_text(content)
 
-        heading_path = extras.pop("heading_path", [page_title, section_title])
-
-        # Pop fields that are also explicitly passed below. This prevents:
-        # TypeError: PageSection() got multiple values for keyword argument ...
-        extra_keywords = extras.pop("keywords", [])
-        extra_entities = extras.pop("entities", [])
-        extra_dates = extras.pop("dates", [])
-        extra_emails = extras.pop("emails", [])
-        extra_course_names = extras.pop("course_names", [])
-        extra_tuition_mentions = extras.pop("tuition_mentions", [])
-
         content_type = classify_content_type(content_clean, page_title, section_title, route_url)
 
         # Hard override for true FAQ records because classifier priority may otherwise
@@ -545,9 +599,49 @@ class ContentExtractor:
         if extras.get("faculty_name"):
             content_type = "faculty_bio"
 
+        content_type = self._fallback_content_type(
+            content_type,
+            route_url,
+            page_title,
+            section_title,
+            content_clean,
+        )
+
+        # This may add specialized metadata such as faculty_name or _extra_course_names.
+        self._ensure_specialized_metadata(content_type, section_title, content_clean, extras)
+
+        # If a generic person-heading becomes a faculty bio, make the content self-describing.
+        if content_type == "faculty_bio" and extras.get("faculty_name") and not content_clean.lower().startswith("faculty:"):
+            content_clean = clean_text(f"Faculty: {extras['faculty_name']}{content_clean}")
+
         program_type = classify_program_type(content_clean, page_title, section_title, route_url)
         entities = extract_entities(content_clean)
         doc_id = sha256_hash(f"{route_url}|{section_title}|{content_clean}".lower())
+
+        # Pop all fields that are explicitly passed to PageSection below.
+        # This must happen AFTER _ensure_specialized_metadata(), because that method
+        # can add _extra_course_names. Nothing in this set is allowed to remain in extras.
+        heading_path = extras.pop("heading_path", [page_title, section_title])
+        extra_keywords = extras.pop("keywords", [])
+        extra_entities = extras.pop("entities", [])
+        extra_dates = extras.pop("dates", [])
+        extra_emails = extras.pop("emails", [])
+        extra_course_names = extras.pop("course_names", []) + extras.pop("_extra_course_names", [])
+        extra_tuition_mentions = extras.pop("tuition_mentions", [])
+
+        # Defensive cleanup: if future extractor code accidentally adds these keys
+        # before **extras, remove them to prevent duplicate keyword crashes.
+        forbidden_duplicate_keys = {
+            "doc_id", "parent_doc_id", "chunk_id", "url", "canonical_url",
+            "page_title", "section_title", "heading_path", "content",
+            "content_clean", "content_summary", "bullet_points", "token_count",
+            "char_count", "content_type", "program_type", "program_tags",
+            "modality", "keywords", "entities", "dates", "emails",
+            "course_names", "tuition_mentions", "last_scraped_at",
+            "page_last_modified",
+        }
+        for key in forbidden_duplicate_keys:
+            extras.pop(key, None)
 
         return PageSection(
             doc_id=doc_id,
