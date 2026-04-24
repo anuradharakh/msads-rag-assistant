@@ -14,7 +14,10 @@ class Settings(BaseSettings):
 
     seed_urls: List[str] = Field(
         default_factory=lambda: [
-            "https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/"
+            "https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/",
+            "https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/faqs/",
+            "https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/course-progressions/",
+            "https://datascience.uchicago.edu/education/masters-programs/ms-in-applied-data-science/instructors-staff/"
         ]
     )
 
@@ -31,12 +34,19 @@ class Settings(BaseSettings):
             "faculty",
             "admissions",
             "capstone",
-            "faq",
+            "faqs",
             "online",
             "in-person",
             "curriculum",
             "courses",
-            "apply"
+            "course-progressions",   
+            "instructors-staff",     
+            "apply",
+            "how-to-apply",
+            "tuition",
+            "our-students",
+            "career-outcomes",
+            "international-students"
         ]
     )
 
@@ -50,7 +60,7 @@ class Settings(BaseSettings):
     raw_html_dir: str = "data/raw"
     log_dir: str = "data/logs"
 
-    save_raw_html: bool = True
+    save_raw_html: bool = False
     min_text_length: int = 120
     max_retries: int = 3
     verify_ssl: bool = True
