@@ -1,4 +1,4 @@
-from src.pipeline import IngestionPipeline
+from src.ingestion.pipeline import IngestionPipeline
 
 
 def main() -> None:

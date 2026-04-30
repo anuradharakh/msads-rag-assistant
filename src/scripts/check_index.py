@@ -1,4 +1,4 @@
-from src.vector_store import ChromaVectorStore
+from src.retrieval.vector_store import ChromaVectorStore
 
 
 def main() -> None:

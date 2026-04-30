@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 from src.config import settings
-from src.embeddings import EmbeddingClient
+from src.retrieval.embeddings import EmbeddingClient
+from src.retrieval.vector_store import ChromaVectorStore
 from src.utils import clean_text, ensure_dirs
-from src.vector_store import ChromaVectorStore
 
 
 ALLOWED_METADATA_TYPES = (str, int, float, bool)
@@ -34,11 +34,6 @@ class VectorIndexer:
         return records
 
     def _make_document_text(self, record: Dict[str, Any]) -> str:
-        """
-        Text sent to embedding model.
-
-        We include titles and content type because this improves retrieval context.
-        """
         parts = [
             f"Page title: {record.get('page_title', '')}",
             f"Section title: {record.get('section_title', '')}",
@@ -51,10 +46,6 @@ class VectorIndexer:
         return clean_text("\n".join(parts))
 
     def _clean_metadata(self, record: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Chroma metadata values must be simple scalar types.
-        Lists are converted to comma-separated strings.
-        """
         keep_keys = [
             "url",
             "canonical_url",
@@ -93,7 +84,6 @@ class VectorIndexer:
             elif isinstance(value, list):
                 metadata[key] = ", ".join(str(v) for v in value)
 
-        # Useful list fields flattened for filtering/debugging
         for key in ["program_tags", "modality", "keywords", "dates", "emails", "course_names"]:
             value = record.get(key)
             if isinstance(value, list) and value:

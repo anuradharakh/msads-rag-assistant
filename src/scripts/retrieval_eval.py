@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
-from src.retriever import Retriever
+from src.retrieval.retriever import Retriever
 
 
 @dataclass

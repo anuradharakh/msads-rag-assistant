@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from src.embeddings import EmbeddingClient
-from src.vector_store import ChromaVectorStore
+from src.retrieval.embeddings import EmbeddingClient
+from src.retrieval.vector_store import ChromaVectorStore
 
 
 class Retriever:

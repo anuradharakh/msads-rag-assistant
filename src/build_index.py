@@ -1,4 +1,4 @@
-from src.indexer import VectorIndexer
+from src.retrieval.indexer import VectorIndexer
 
 
 def main() -> None:

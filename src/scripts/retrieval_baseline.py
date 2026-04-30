@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from src.retriever import Retriever
+from src.retrieval.retriever import Retriever
 
 
 DEFAULT_QUERIES = [

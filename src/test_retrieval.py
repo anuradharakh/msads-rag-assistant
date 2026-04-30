@@ -1,4 +1,4 @@
-from src.retriever import Retriever
+from src.retrieval.retriever import Retriever
 
 
 def print_results(query: str, results: list[dict]) -> None:
