@@ -65,5 +65,11 @@ class Settings(BaseSettings):
     max_retries: int = 3
     verify_ssl: bool = True
 
+    embedding_model: str = "BAAI/bge-base-en-v1.5"
+    embedding_batch_size: int = 32
+    chroma_dir: str = "data/vector_store/chroma"
+    chroma_collection_name: str = "msads_knowledge_base"
+    processed_data_path: str = "data/processed/msads_processed_data.jsonl"
+
 
 settings = Settings()

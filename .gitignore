@@ -39,3 +39,6 @@ data/embeddings/
 htmlcov/
 
 .Rhistory
+
+data/vector_store/
+.env
