@@ -30,7 +30,16 @@ def main() -> None:
 
         print("\nSOURCES:")
         for source in result["sources"]:
-            print(source)
+            print(
+                {
+                    "source_id": source.get("source_id"),
+                    "section_title": source.get("section_title"),
+                    "content_type": source.get("content_type"),
+                    "score": source.get("score"),
+                    "rerank_score": source.get("rerank_score"),
+                    "url": source.get("url"),
+                }
+            )
 
 
 if __name__ == "__main__":

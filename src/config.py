@@ -76,4 +76,16 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_min_score: float = 0.35
 
+    # RAG / Generation
+    llm_provider: str = "ollama"
+    llm_model: str = "qwen2.5:7b"
+    rag_top_k: int = 5
+    rag_min_score: float = 0.35
+
+    # Reranking
+    reranker_model: str = "BAAI/bge-reranker-base"
+    rerank_initial_top_k: int = 20
+    rerank_final_top_k: int = 5
+    use_reranker: bool = True
+
 settings = Settings()
