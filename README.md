@@ -92,5 +92,7 @@ python -m src.main
 python -m src.build_index
 python -m src.scripts.check_index
 python -m src.scripts.retrieval_baseline
+python -m src.scripts.rag_smoke_test
+python -m src.scripts.chat_cli
 ```
 

@@ -71,5 +71,9 @@ class Settings(BaseSettings):
     chroma_collection_name: str = "msads_knowledge_base"
     processed_data_path: str = "data/processed/msads_processed_data.jsonl"
 
+    llm_provider: str = "ollama"
+    llm_model: str = "qwen2.5:7b"
+    rag_top_k: int = 5
+    rag_min_score: float = 0.35
 
 settings = Settings()
